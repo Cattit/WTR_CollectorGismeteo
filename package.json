@@ -1,0 +1,33 @@
+{
+  "name": "wtr_collectorgismeteo",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "nodemon index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Cattit/WTR_CollectorGismeteo.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Cattit/WTR_CollectorGismeteo/issues"
+  },
+  "homepage": "https://github.com/Cattit/WTR_CollectorGismeteo#readme",
+  "dependencies": {
+    "axios": "^0.18.0",
+    "body-parser": "^1.18.3",
+    "cheerio": "^1.0.0-rc.2",
+    "cors": "^2.8.5",
+    "dom-parser": "^0.1.5",
+    "express": "^4.16.4",
+    "morgan": "^1.9.1",
+    "nodemon": "^1.18.9",
+    "pg": "^7.8.0",
+    "puppeteer": "^1.11.0",
+    "request": "^2.88.0"
+  }
+}
