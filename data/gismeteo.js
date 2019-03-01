@@ -3,6 +3,7 @@ let dal = require("wtr-dal");
 const source = "gismeteo"
 const urlDop = [null, "/tomorrow/", null, "/4-day/", null, "/6-day/"]
 const dateNow = new Date()
+dateNow.setHours(0, 0, 0, 000)
 
 function plusminus(mas) {
   const regexp = /^(([\u002D\u00AD\u058A\u05BE\u1400\u1806\u2010\u2011\u2012\u2013\u2014\u2015\u2E17\u2E1A\u2E3A\u2E3B\u2E40\u301C\u3030\u30A0\uFE31\uFE32\uFE58\uFE63\uFF0D\u2212\-])|([\+\uFF0B\u002B\u2795]))?\s*(\d*(?:[.,]\d*)?)\s*(\u2103|\u00B0?[СC]|\u2109|\u00B0?F|\u212A|\u00B0?[KК]|\u00B0)?$/mi
@@ -33,16 +34,20 @@ function dateNight(amount_day) {
   }
 }
 
-function fun_rainfall(weather) {
+function fun_rainfall(weather, wind, temperature, amount_rainfall) {
   let type = new Object();
   type.snow = 0;
   type.rain = 0;
-  type.sand = 0;
-  type.squall = 0;
-  type.mist = 0;
+  type.sand = null;
+  type.squall = null;
+  type.mis = null;
   type.storm = 0;
-  type.drizzle = 0;
+  type.drizzle = null;
   type.rainsnow = 0;
+  type.grad = null;
+  type.hard_wind = wind >= 15 ? 1 : 0
+  type.hard_heat = (dateNow.getMonth() >= 3 && dateNow.getMonth() <= 8 && temperature >= 40) ? 1 : 0
+  type.hard_frost = ((dateNow.getMonth() >= 9 || dateNow.getMonth() <= 2) && temperature <= -35) ? 1 : 0
 
   weather.map(w => {
     if (w.indexOf("дождь") !== -1)
@@ -53,6 +58,8 @@ function fun_rainfall(weather) {
       type.rainsnow = 1;
     if (w.indexOf("гроза") !== -1)
       type.storm = 1;
+
+    type.hard_rainfall = ((type.snow === 1 && type.rainsnow === 0 && type.rain === 0 && amount_rainfall >= 7) || amount_rainfall >= 15) ? 1 : 0 // если снега не менее 7 мм или осадков не менее 15 мм
   })
 
   return type
@@ -69,20 +76,20 @@ async function getforecast(urlNew) {
     await page.goto(gismeteo + urlNew + urlDop[dd]); // переход по ссылке
 
     //выполнение скрипта как в консоли Gismeteo
-    let temperature = await page.evaluate(() => {   // температура
+    let temperatureAll = await page.evaluate(() => {   // температура
       const tempTags = document.querySelectorAll('span.unit_temperature_c');
       const data = Array.from(tempTags).map(temp => temp.innerText.trim());
       return data
     });
-    temperature = plusminus(temperature)
+    temperatureAll = plusminus(temperatureAll)
 
-    const wind_speed = await page.evaluate(() => {  // скорость ветра и порывов
+    const wind_speedAll = await page.evaluate(() => {  // скорость ветра и порывов
       const windTags = document.querySelectorAll('span.unit_wind_m_s');
       const data = Array.from(windTags).map(wind => Number(wind.innerText));
       return data
     });
 
-    const amount_rainfall = await page.evaluate(() => {  // кол-во осадков
+    const amount_rainfallAll = await page.evaluate(() => {  // кол-во осадков
       const rainfallTags = document.querySelectorAll('div.w_prec');
       let data = Array.from(rainfallTags).map(rainfall => rainfall.innerText);
       data = data.map(d => Number(d.replace(/,/, ".")))
@@ -96,6 +103,11 @@ async function getforecast(urlNew) {
       return data
     });
     // .match(/^[а-я]+/ig) слово в начале текста: только вид облачности
+    let temperature = Math.max(temperatureAll[10], temperatureAll[11], temperatureAll[12], temperatureAll[13]),
+      wind_speed_from = Math.min(wind_speedAll[14], wind_speedAll[15], wind_speedAll[16], wind_speedAll[17]),
+      wind_speed_to = Math.max(wind_speedAll[14], wind_speedAll[15], wind_speedAll[16], wind_speedAll[17]),
+      wind_gust = Math.max(wind_speedAll[22], wind_speedAll[23], wind_speedAll[24], wind_speedAll[25]),
+      amount_rainfall = amount_rainfallAll.length === 0 ? 0 : (amount_rainfallAll[4] + amount_rainfallAll[5] + amount_rainfallAll[6] + amount_rainfallAll[7]).toFixed(1) // если не округлять иногда считает неправильно
 
     dataAll.push(
       {
@@ -103,15 +115,21 @@ async function getforecast(urlNew) {
         url: urlNew,
         depth_forecast: dd,
         date: dateDay(dd),
-        temperature: Math.max(temperature[10], temperature[11], temperature[12], temperature[13]),
+        temperature: temperature,
         wind_speed: {
-          from: Math.min(wind_speed[14], wind_speed[15], wind_speed[16], wind_speed[17]),
-          to: Math.max(wind_speed[14], wind_speed[15], wind_speed[16], wind_speed[17])
+          from: wind_speed_from,
+          to: wind_speed_to
         },
-        wind_gust: Math.max(wind_speed[22], wind_speed[23], wind_speed[24], wind_speed[25]),
-        rainfall: fun_rainfall([rainfall[4], rainfall[5], rainfall[6], rainfall[7]]),
-        amount_rainfall: amount_rainfall.length === 0 ? 0 : (amount_rainfall[4] + amount_rainfall[5] + amount_rainfall[6] + amount_rainfall[7])
+        wind_gust: wind_gust,
+        amount_rainfall: amount_rainfall,
+        rainfall: fun_rainfall([rainfall[4], rainfall[5], rainfall[6], rainfall[7]], Math.max(wind_speed_from, wind_speed_to, wind_gust), temperature, amount_rainfall),
       })
+
+    temperature = Math.min(temperatureAll[6], temperatureAll[7], temperatureAll[8], temperatureAll[9])
+    wind_speed_from = Math.min(wind_speedAll[10], wind_speedAll[11], wind_speedAll[12], wind_speedAll[13])
+    wind_speed_to = Math.max(wind_speedAll[10], wind_speedAll[11], wind_speedAll[12], wind_speedAll[13])
+    wind_gust = Math.max(wind_speedAll[18], wind_speedAll[19], wind_speedAll[20], wind_speedAll[21])
+    amount_rainfall = amount_rainfallAll.length === 0 ? 0 : (amount_rainfallAll[0] + amount_rainfallAll[1] + amount_rainfallAll[2] + amount_rainfallAll[3]).toFixed(1)
 
     dataAll.push(
       {
@@ -119,14 +137,14 @@ async function getforecast(urlNew) {
         url: urlNew,
         depth_forecast: dd,
         date: dateNight(dd),
-        temperature: Math.min(temperature[6], temperature[7], temperature[8], temperature[9]),
+        temperature: temperature,
         wind_speed: {
-          from: Math.min(wind_speed[10], wind_speed[11], wind_speed[12], wind_speed[13]),
-          to: Math.max(wind_speed[10], wind_speed[11], wind_speed[12], wind_speed[13])
+          from: wind_speed_from,
+          to: wind_speed_to
         },
-        wind_gust: Math.max(wind_speed[18], wind_speed[19], wind_speed[20], wind_speed[21]),
-        rainfall: fun_rainfall([rainfall[0], rainfall[1], rainfall[2], rainfall[3]]),
-        amount_rainfall: amount_rainfall.length === 0 ? 0 : (amount_rainfall[0] + amount_rainfall[1] + amount_rainfall[2] + amount_rainfall[3])
+        wind_gust: wind_gust,
+        amount_rainfall: amount_rainfall,
+        rainfall: fun_rainfall([rainfall[0], rainfall[1], rainfall[2], rainfall[3]], Math.max(wind_speed_from, wind_speed_to, wind_gust), temperature, amount_rainfall)
       })
 
   }
