@@ -1,13 +1,20 @@
-let getData = require("./data/gismeteo.js");
-let dal = require("wtr-dal");
+const getData = require("./data/gismeteo.js");
+const dal = require("wtr-dal");
+// const source = "gismeteo"
+const id_source = 1
+const dateNow = new Date()
+dateNow.setHours(0, 0, 0, 000)
 
 async function startDataСollection() {
-    let url = "weather-kirensk-4743"
-    const dataForecast = await getData.getforecast(url);
-    // console.log(dataForecast)
-    const id_forecast = await dal.saveForecast(dataForecast[0].source, dataForecast[0].date.now);
-    const id_location = await dal.getIdLocationByUrl(url)
-    await dataForecast.map(forecast => dal.saveForecastData(forecast, id_forecast, id_location));
+    const id_forecast = await dal.saveForecast(id_source, dateNow);
+    const masLocation = await dal.getAllLocationUrlId()
+    const url_api = await dal.getUrlApi(id_source)
+    for (var i = 0; i < masLocation.length; i++) {
+        let url_location = masLocation[i].url_gismeteo
+        let id_location = masLocation[i].id
+        const dataForecast = await getData.getforecast(url_api, url_location, id_source)
+        await dataForecast.map(forecast => dal.saveForecastData(forecast, id_forecast, id_location));
+    }
 }
 
 startDataСollection();

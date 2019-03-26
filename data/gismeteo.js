@@ -1,6 +1,5 @@
 const puppeteer = require('puppeteer');
-let dal = require("wtr-dal");
-const source = "gismeteo"
+const dal = require("wtr-dal");
 const urlDop = [null, "/tomorrow/", null, "/4-day/", null, "/6-day/"]
 const dateNow = new Date()
 dateNow.setHours(0, 0, 0, 000)
@@ -66,14 +65,14 @@ function fun_rainfall(weather, wind, temperature, amount_rainfall) {
 }
 
 
-async function getforecast(urlNew) {
+async function getforecast(url_api, url_location, id_source) { // url_api = "https://www.gismeteo.ru/"
   let dataAll = [];
   const browser = await puppeteer.launch();   //запуск браузера хром
   const page = await browser.newPage();   //переход на новую стр
-  const gismeteo = "https://www.gismeteo.ru/"
+
   for (let dd = 1, i = 0; dd < 6; dd += 2, i++) {
 
-    await page.goto(gismeteo + urlNew + urlDop[dd]); // переход по ссылке
+    await page.goto(url_api + url_location + urlDop[dd]); // переход по ссылке
 
     //выполнение скрипта как в консоли Gismeteo
     let temperatureAll = await page.evaluate(() => {   // температура
@@ -111,8 +110,8 @@ async function getforecast(urlNew) {
 
     dataAll.push(
       {
-        source,
-        url: urlNew,
+        id_source,
+        url: url_location,
         depth_forecast: dd,
         date: dateDay(dd),
         temperature: temperature,
@@ -133,8 +132,8 @@ async function getforecast(urlNew) {
 
     dataAll.push(
       {
-        source,
-        url: urlNew,
+        id_source,
+        url: url_location,
         depth_forecast: dd,
         date: dateNight(dd),
         temperature: temperature,
@@ -150,7 +149,6 @@ async function getforecast(urlNew) {
   }
 
   await browser.close();// закрыть браузер
-  // console.log(dataAll)
   return dataAll
 }
 
