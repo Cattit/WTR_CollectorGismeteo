@@ -72,7 +72,7 @@ async function getforecast(url_api, url_location, id_source) { // url_api = "htt
 
   for (let dd = 1, i = 0; dd < 6; dd += 2, i++) {
 
-    await page.goto(url_api + url_location + urlDop[dd]); // переход по ссылке
+    await page.goto(url_api + url_location + urlDop[dd], { waitUntil: 'load', timeout: 0 }); // переход по ссылке
 
     //выполнение скрипта как в консоли Gismeteo
     let temperatureAll = await page.evaluate(() => {   // температура
