@@ -33,7 +33,7 @@ function dateNight(amount_day) {
   }
 }
 
-function fun_rainfall(weather, wind, temperature, amount_rainfall) {
+function fun_rainfall(rainfallLength, weather, wind, temperature, amount_rainfall) {
   let type = new Object();
   type.snow = 0;
   type.rain = 0;
@@ -47,19 +47,19 @@ function fun_rainfall(weather, wind, temperature, amount_rainfall) {
   type.hard_wind = wind >= 15 ? 1 : 0
   type.hard_heat = (dateNow.getMonth() >= 3 && dateNow.getMonth() <= 8 && temperature >= 40) ? 1 : 0
   type.hard_frost = ((dateNow.getMonth() >= 9 || dateNow.getMonth() <= 2) && temperature <= -35) ? 1 : 0
-
-  weather.map(w => {
-    if (w.indexOf("дождь") !== -1)
-      type.rain = 1;
-    if (w.indexOf("снег") !== -1)
-      type.snow = 1;
-    if (w.indexOf("осадки") !== -1)
-      type.rainsnow = 1;
-    if (w.indexOf("гроза") !== -1)
-      type.storm = 1;
-
-    type.hard_rainfall = ((type.snow === 1 && type.rainsnow === 0 && type.rain === 0 && amount_rainfall >= 7) || amount_rainfall >= 15) ? 1 : 0 // если снега не менее 7 мм или осадков не менее 15 мм
-  })
+  if (rainfallLength !== 0) {
+    weather.map(w => {
+      if (w.indexOf("дождь") !== -1)
+        type.rain = 1;
+      if (w.indexOf("снег") !== -1)
+        type.snow = 1;
+      if (w.indexOf("осадки") !== -1)
+        type.rainsnow = 1;
+      if (w.indexOf("гроза") !== -1)
+        type.storm = 1;
+    })
+  }
+  type.hard_rainfall = ((type.snow === 1 && type.rainsnow === 0 && type.rain === 0 && amount_rainfall >= 7) || amount_rainfall >= 15) ? 1 : 0 // если снега не менее 7 мм или осадков не менее 15 мм
 
   return type
 }
@@ -67,7 +67,7 @@ function fun_rainfall(weather, wind, temperature, amount_rainfall) {
 
 async function getforecast(url_api, url_location, id_source) { // url_api = "https://www.gismeteo.ru/"
   let dataAll = [];
-  const browser = await puppeteer.launch();   //запуск браузера хром
+  const browser = await puppeteer.launch({ args: ['--no-sandbox'] });   //запуск браузера хром
   const page = await browser.newPage();   //переход на новую стр
 
   for (let dd = 1, i = 0; dd < 6; dd += 2, i++) {
@@ -102,6 +102,7 @@ async function getforecast(url_api, url_location, id_source) { // url_api = "htt
       return data
     });
     // .match(/^[а-я]+/ig) слово в начале текста: только вид облачности
+
     let temperature = Math.max(temperatureAll[10], temperatureAll[11], temperatureAll[12], temperatureAll[13]),
       wind_speed_from = Math.min(wind_speedAll[14], wind_speedAll[15], wind_speedAll[16], wind_speedAll[17]),
       wind_speed_to = Math.max(wind_speedAll[14], wind_speedAll[15], wind_speedAll[16], wind_speedAll[17]),
@@ -121,7 +122,7 @@ async function getforecast(url_api, url_location, id_source) { // url_api = "htt
         },
         wind_gust: wind_gust,
         amount_rainfall: amount_rainfall,
-        rainfall: fun_rainfall([rainfall[4], rainfall[5], rainfall[6], rainfall[7]], Math.max(wind_speed_from, wind_speed_to, wind_gust), temperature, amount_rainfall),
+        rainfall: fun_rainfall(rainfall.length, [rainfall[4], rainfall[5], rainfall[6], rainfall[7]], Math.max(wind_speed_from, wind_speed_to, wind_gust), temperature, amount_rainfall),
       })
 
     temperature = Math.min(temperatureAll[6], temperatureAll[7], temperatureAll[8], temperatureAll[9])
@@ -143,7 +144,7 @@ async function getforecast(url_api, url_location, id_source) { // url_api = "htt
         },
         wind_gust: wind_gust,
         amount_rainfall: amount_rainfall,
-        rainfall: fun_rainfall([rainfall[0], rainfall[1], rainfall[2], rainfall[3]], Math.max(wind_speed_from, wind_speed_to, wind_gust), temperature, amount_rainfall)
+        rainfall: fun_rainfall(rainfall.length, [rainfall[0], rainfall[1], rainfall[2], rainfall[3]], Math.max(wind_speed_from, wind_speed_to, wind_gust), temperature, amount_rainfall)
       })
 
   }

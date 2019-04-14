@@ -10,10 +10,12 @@ async function startDataСollection() {
     const masLocation = await dal.getAllLocationUrlId()
     const url_api = await dal.getUrlApi(id_source)
     for (var i = 0; i < masLocation.length; i++) {
+        // if (masLocation[i].id === 21 || masLocation[i].id === 16) {
         let url_location = masLocation[i].url_gismeteo
         let id_location = masLocation[i].id
         const dataForecast = await getData.getforecast(url_api, url_location, id_source)
         await dataForecast.map(forecast => dal.saveForecastData(forecast, id_forecast, id_location));
+        // }
     }
 }
 
